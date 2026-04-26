@@ -4,12 +4,32 @@ from PIL import Image
 import numpy as np
 import json
 import os
+import gdown
 
 app = Flask(__name__)
 
-model = tf.keras.models.load_model('model/disease_model.keras')
+# Google Drive file IDs
+MODEL_FILE_ID = '16tn3KCyrWQiNLTE8ej7a4pau70jZozmX'
+LABELS_FILE_ID = '1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c'
 
-with open('model/class_labels.json', 'r') as f:
+MODEL_PATH = 'model/disease_model.keras'
+LABELS_PATH = 'model/class_labels.json'
+
+# Download model files if not present
+os.makedirs('model', exist_ok=True)
+
+if not os.path.exists(MODEL_PATH):
+    print("Downloading model from Google Drive...")
+    gdown.download(f'https://drive.google.com/uc?id={MODEL_FILE_ID}', MODEL_PATH, quiet=False)
+
+if not os.path.exists(LABELS_PATH):
+    print("Downloading class labels from Google Drive...")
+    gdown.download(f'https://drive.google.com/uc?id={LABELS_FILE_ID}', LABELS_PATH, quiet=False)
+
+# Load model and labels
+model = tf.keras.models.load_model(MODEL_PATH)
+
+with open(LABELS_PATH, 'r') as f:
     class_labels = json.load(f)
 
 disease_info = {
