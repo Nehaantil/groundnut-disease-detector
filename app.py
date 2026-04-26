@@ -17,16 +17,16 @@ os.makedirs('model', exist_ok=True)
 if not os.path.exists(KERAS_PATH):
     print("Downloading model...")
     gdown.download(
-        f'https://drive.google.com/uc?export=download&id=16tn3KCyrWQiNLTE8ej7a4pau70jZozmX',
-        KERAS_PATH, quiet=False, fuzzy=True
-    )
+    f'https://drive.google.com/uc?id=16tn3KCyrWQiNLTE8ej7a4pau70jZozmX',
+    KERAS_PATH, quiet=False
+)
 
 if not os.path.exists(LABELS_PATH):
     print("Downloading labels...")
     gdown.download(
-        f'https://drive.google.com/uc?export=download&id=1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c',
-        LABELS_PATH, quiet=False, fuzzy=True
-    )
+    f'https://drive.google.com/uc?id=1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c',
+    LABELS_PATH, quiet=False
+)
 
 # Convert to TFLite if not already done
 if not os.path.exists(MODEL_PATH):
