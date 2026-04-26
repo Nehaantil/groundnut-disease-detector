@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, render_template
-import tensorflow as tf
 from PIL import Image
 import numpy as np
 import json
@@ -8,26 +7,50 @@ import gdown
 
 app = Flask(__name__)
 
-# Google Drive file IDs
-MODEL_FILE_ID = '16tn3KCyrWQiNLTE8ej7a4pau70jZozmX'
-LABELS_FILE_ID = '1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c'
-
-MODEL_PATH = 'model/disease_model.keras'
+MODEL_PATH = 'model/disease_model.tflite'
 LABELS_PATH = 'model/class_labels.json'
+KERAS_PATH = 'model/disease_model.keras'
 
-# Download model files if not present
 os.makedirs('model', exist_ok=True)
 
-if not os.path.exists(MODEL_PATH):
-    print("Downloading model from Google Drive...")
-    gdown.download(f'https://drive.google.com/uc?id={MODEL_FILE_ID}', MODEL_PATH, quiet=False)
+# Download files from Google Drive
+if not os.path.exists(KERAS_PATH):
+    print("Downloading model...")
+    gdown.download(
+        f'https://drive.google.com/uc?export=download&id=16tn3KCyrWQiNLTE8ej7a4pau70jZozmX',
+        KERAS_PATH, quiet=False, fuzzy=True
+    )
 
 if not os.path.exists(LABELS_PATH):
-    print("Downloading class labels from Google Drive...")
-    gdown.download(f'https://drive.google.com/uc?id={LABELS_FILE_ID}', LABELS_PATH, quiet=False)
+    print("Downloading labels...")
+    gdown.download(
+        f'https://drive.google.com/uc?export=download&id=1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c',
+        LABELS_PATH, quiet=False, fuzzy=True
+    )
 
-# Load model and labels
-model = tf.keras.models.load_model(MODEL_PATH,compile=False)
+# Convert to TFLite if not already done
+if not os.path.exists(MODEL_PATH):
+    print("Converting to TFLite...")
+    import tensorflow as tf
+    model = tf.keras.models.load_model(KERAS_PATH, compile=False)
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    tflite_model = converter.convert()
+    with open(MODEL_PATH, 'wb') as f:
+        f.write(tflite_model)
+    print("Conversion done!")
+
+# Load TFLite model
+try:
+    import tflite_runtime.interpreter as tflite
+    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
+except:
+    import tensorflow as tf
+    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+print("TFLite model loaded!")
 
 with open(LABELS_PATH, 'r') as f:
     class_labels = json.load(f)
@@ -61,7 +84,7 @@ disease_info = {
 
 def prepare_image(image):
     image = image.resize((224, 224))
-    image = np.array(image) / 255.0
+    image = np.array(image, dtype=np.float32) / 255.0
     image = np.expand_dims(image, axis=0)
     return image
 
@@ -79,7 +102,9 @@ def predict():
     try:
         image = Image.open(file).convert('RGB')
         prepared = prepare_image(image)
-        predictions = model.predict(prepared)
+        interpreter.set_tensor(input_details[0]['index'], prepared)
+        interpreter.invoke()
+        predictions = interpreter.get_tensor(output_details[0]['index'])
         predicted_index = str(np.argmax(predictions[0]))
         confidence = float(np.max(predictions[0])) * 100
         class_name = class_labels[predicted_index]
