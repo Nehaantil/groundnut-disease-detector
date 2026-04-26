@@ -27,7 +27,7 @@ if not os.path.exists(LABELS_PATH):
     gdown.download(f'https://drive.google.com/uc?id={LABELS_FILE_ID}', LABELS_PATH, quiet=False)
 
 # Load model and labels
-model = tf.keras.models.load_model(MODEL_PATH)
+model = tf.keras.models.load_model(MODEL_PATH,compile=False)
 
 with open(LABELS_PATH, 'r') as f:
     class_labels = json.load(f)

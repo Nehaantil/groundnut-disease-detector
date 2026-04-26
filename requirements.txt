@@ -1,7 +1,6 @@
 flask
-tensorflow-cpu==2.14.0
-pillow
+tensorflow==2.16.1
 numpy==1.26.4
+pillow
 gdown
 gunicorn
-h5py
