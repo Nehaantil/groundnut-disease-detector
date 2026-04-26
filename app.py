@@ -7,31 +7,36 @@ import gdown
 
 app = Flask(__name__)
 
-MODEL_PATH = 'model/disease_model.keras'
+MODEL_PATH = 'model/disease_model.tflite'
 LABELS_PATH = 'model/class_labels.json'
 
 os.makedirs('model', exist_ok=True)
 
-if not os.path.exists(MODEL_PATH):
-    print("Downloading model...")
-    gdown.download(
-        'https://drive.google.com/uc?id=16tn3KCyrWQiNLTE8ej7a4pau70jZozmX',
-        MODEL_PATH,
-        quiet=False
-    )
-
 if not os.path.exists(LABELS_PATH):
-    print("Downloading labels...")
     gdown.download(
         'https://drive.google.com/uc?id=1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c',
-        LABELS_PATH,
-        quiet=False
+        LABELS_PATH, quiet=False
     )
 
-print("Loading model...")
-import tensorflow as tf
-model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-print("Model loaded!")
+if not os.path.exists(MODEL_PATH):
+    print("Downloading TFLite model...")
+    gdown.download(
+        'https://drive.google.com/uc?id=1PQdFE1qpAvDgpuMrmQlp-f6e_Fd4bT27',
+        MODEL_PATH, quiet=False
+    )
+
+print("Loading TFLite model...")
+try:
+    import tflite_runtime.interpreter as tflite
+    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
+except:
+    import tensorflow as tf
+    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+print("TFLite model loaded!")
 
 with open(LABELS_PATH, 'r') as f:
     class_labels = json.load(f)
@@ -83,7 +88,9 @@ def predict():
     try:
         image = Image.open(file).convert('RGB')
         prepared = prepare_image(image)
-        predictions = model.predict(prepared)
+        interpreter.set_tensor(input_details[0]['index'], prepared)
+        interpreter.invoke()
+        predictions = interpreter.get_tensor(output_details[0]['index'])
         predicted_index = str(np.argmax(predictions[0]))
         confidence = float(np.max(predictions[0])) * 100
         class_name = class_labels[predicted_index]
