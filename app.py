@@ -7,50 +7,31 @@ import gdown
 
 app = Flask(__name__)
 
-MODEL_PATH = 'model/disease_model.tflite'
+MODEL_PATH = 'model/disease_model.keras'
 LABELS_PATH = 'model/class_labels.json'
-KERAS_PATH = 'model/disease_model.keras'
 
 os.makedirs('model', exist_ok=True)
 
-# Download files from Google Drive
-if not os.path.exists(KERAS_PATH):
+if not os.path.exists(MODEL_PATH):
     print("Downloading model...")
     gdown.download(
-    f'https://drive.google.com/uc?id=16tn3KCyrWQiNLTE8ej7a4pau70jZozmX',
-    KERAS_PATH, quiet=False
-)
+        'https://drive.google.com/uc?id=16tn3KCyrWQiNLTE8ej7a4pau70jZozmX',
+        MODEL_PATH,
+        quiet=False
+    )
 
 if not os.path.exists(LABELS_PATH):
     print("Downloading labels...")
     gdown.download(
-    f'https://drive.google.com/uc?id=1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c',
-    LABELS_PATH, quiet=False
-)
+        'https://drive.google.com/uc?id=1SMrVQjWRxO0tl3YKHasbIRBLjDizNm8c',
+        LABELS_PATH,
+        quiet=False
+    )
 
-# Convert to TFLite if not already done
-if not os.path.exists(MODEL_PATH):
-    print("Converting to TFLite...")
-    import tensorflow as tf
-    model = tf.keras.models.load_model(KERAS_PATH, compile=False)
-    converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    tflite_model = converter.convert()
-    with open(MODEL_PATH, 'wb') as f:
-        f.write(tflite_model)
-    print("Conversion done!")
-
-# Load TFLite model
-try:
-    import tflite_runtime.interpreter as tflite
-    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
-except:
-    import tensorflow as tf
-    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
-
-interpreter.allocate_tensors()
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-print("TFLite model loaded!")
+print("Loading model...")
+import tensorflow as tf
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+print("Model loaded!")
 
 with open(LABELS_PATH, 'r') as f:
     class_labels = json.load(f)
@@ -102,9 +83,7 @@ def predict():
     try:
         image = Image.open(file).convert('RGB')
         prepared = prepare_image(image)
-        interpreter.set_tensor(input_details[0]['index'], prepared)
-        interpreter.invoke()
-        predictions = interpreter.get_tensor(output_details[0]['index'])
+        predictions = model.predict(prepared)
         predicted_index = str(np.argmax(predictions[0]))
         confidence = float(np.max(predictions[0])) * 100
         class_name = class_labels[predicted_index]

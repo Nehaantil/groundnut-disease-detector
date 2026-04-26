@@ -1,6 +1,6 @@
 flask
-tflite-runtime
-pillow
+tensorflow==2.16.1
 numpy==1.26.4
+pillow
 gdown
 gunicorn
